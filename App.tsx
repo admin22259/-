@@ -97,6 +97,21 @@ export default function App() {
     setDeleteModal({ isOpen: false, type: null, id: null });
   };
 
+  const handleInventoryImport = (importedItems: InventoryItem[]) => {
+    setInventory(prev => {
+      // Create a map of existing items for easier updating
+      const itemMap = new Map(prev.map(i => [i.id, i]));
+      
+      // Update existing or add new
+      importedItems.forEach(newItem => {
+        itemMap.set(newItem.id, newItem);
+      });
+      
+      // Convert back to array
+      return Array.from(itemMap.values());
+    });
+  };
+
   // Cart Actions
   const addToCart = (item: MenuItem) => {
     setCart(prev => {
@@ -172,6 +187,7 @@ export default function App() {
                   <InventoryTable 
                     inventory={inventory.slice(0, 3)} 
                     onDelete={(id) => initiateDelete('inventory', id)} 
+                    // No onImport passed here for the widget view
                   /> 
                 </div>
               )}
@@ -212,7 +228,13 @@ export default function App() {
           />
         );
       case 'inventory':
-        return <InventoryTable inventory={inventory} onDelete={(id) => initiateDelete('inventory', id)} />;
+        return (
+          <InventoryTable 
+            inventory={inventory} 
+            onDelete={(id) => initiateDelete('inventory', id)} 
+            onImport={handleInventoryImport}
+          />
+        );
       case 'ai-insights':
         return <AIAnalysis sales={sales} expenses={expenses} inventory={inventory} />;
       case 'sales':
