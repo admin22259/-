@@ -2,8 +2,20 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JuiceMaster Pro - إدارة محلات العصائر</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Hamba Juice - همبا جوس</title>
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#f97316" />
+    <meta name="description" content="نظام نقاط البيع وإدارة المخزون - همبا جوس صلالة">
+    
+    <!-- iOS Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hamba Juice">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3132/3132693.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
     <script>
@@ -30,6 +42,20 @@
                 500: '#84cc16',
                 600: '#65a30d',
               }
+            },
+            keyframes: {
+              slideUp: {
+                '0%': { transform: 'translateY(100%)' },
+                '100%': { transform: 'translateY(0)' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'scale(0.95)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              }
+            },
+            animation: {
+              'slide-up': 'slideUp 0.3s ease-out forwards',
+              'fade-in': 'fadeIn 0.2s ease-out forwards',
             }
           },
         },
@@ -39,6 +65,84 @@
       body {
         font-family: 'Tajawal', sans-serif;
         background-color: #fff7ed;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #fff7ed; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #fdba74; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #f97316; 
+      }
+
+      /* Hide Scrollbar Utilities */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+
+      /* Smooth Hover Effect Class */
+      .interactive-hover {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .interactive-hover:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transform: translateY(-2px);
+      }
+      
+      /* Animation Utilities Fix for Mobile */
+      .animate-in {
+        animation-duration: 0.3s;
+        animation-fill-mode: forwards;
+        animation-timing-function: ease-out;
+      }
+      .slide-in-from-bottom-full {
+        animation-name: slideUpMobile;
+      }
+      .slide-in-from-bottom-4 {
+        animation-name: slideUpSmall;
+      }
+      .fade-in {
+        animation-name: fadeInMobile;
+      }
+      .zoom-in {
+        animation-name: zoomInMobile;
+      }
+
+      @keyframes slideUpMobile {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+      }
+      @keyframes slideUpSmall {
+        from { transform: translateY(1rem); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      @keyframes fadeInMobile {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes zoomInMobile {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      /* Text Selection Color */
+      ::selection {
+        background-color: #f97316;
+        color: white;
       }
     </style>
   <script type="importmap">
@@ -56,5 +160,19 @@
 </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Register Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

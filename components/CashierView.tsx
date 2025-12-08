@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { MenuItem, CartItem } from '../types';
 import { 
   Plus, Minus, Trash2, Printer, ShoppingBag, 
   Coffee, UtensilsCrossed, Zap, Salad, Cookie, 
-  IceCream, GlassWater, Martini, Citrus, Search
+  IceCream, GlassWater, Martini, Citrus, Search, PenLine
 } from 'lucide-react';
 import { MOCK_MENU_ITEMS, GOOGLE_SHEET_URL } from '../constants';
 
@@ -12,6 +13,7 @@ interface CashierViewProps {
   onAddToCart: (item: MenuItem) => void;
   onRemoveFromCart: (itemId: string) => void;
   onUpdateQuantity: (itemId: string, delta: number) => void;
+  onUpdateItemNote?: (itemId: string, note: string) => void;
   onCheckout: (paymentMethod: 'Cash' | 'Card' | 'Online') => void;
   onClearCart: () => void;
 }
@@ -21,6 +23,7 @@ export const CashierView: React.FC<CashierViewProps> = ({
   onAddToCart,
   onRemoveFromCart,
   onUpdateQuantity,
+  onUpdateItemNote,
   onCheckout,
   onClearCart
 }) => {
@@ -79,7 +82,10 @@ export const CashierView: React.FC<CashierViewProps> = ({
     const invoiceId = Math.random().toString(36).substr(2, 9).toUpperCase();
     const date = new Date().toLocaleDateString('en-GB');
     const time = new Date().toLocaleTimeString('en-GB');
-    const itemsStr = cart.map(i => `${i.name} (${i.quantity})`).join(' + ');
+    const itemsStr = cart.map(i => {
+       const note = i.note ? ` [${i.note}]` : '';
+       return `${i.name} (${i.quantity})${note}`;
+    }).join(' + ');
     const total = totalAmount.toFixed(3);
     
     // 2. CSV Content with BOM for Arabic support
@@ -233,38 +239,52 @@ export const CashierView: React.FC<CashierViewProps> = ({
             cart.map((item) => {
               const ItemIcon = getItemIcon(item.category);
               return (
-                <div key={item.id} className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl shadow-sm group hover:border-orange-200 transition-colors">
-                  <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center font-bold ${item.color.replace('text-', 'bg-').replace('100', '50 text-gray-700')}`}>
-                    <ItemIcon size={20} />
+                <div key={item.id} className="bg-white border border-gray-100 rounded-xl shadow-sm group hover:border-orange-200 transition-colors p-3">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center font-bold ${item.color.replace('text-', 'bg-').replace('100', '50 text-gray-700')}`}>
+                      <ItemIcon size={18} />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-800 text-sm truncate">{item.name}</h4>
+                      <p className="text-orange-600 text-xs font-bold mt-0.5">{formatCurrency(item.price * item.quantity)}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => onUpdateQuantity(item.id, -1)}
+                        className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-red-600 transition-colors disabled:opacity-50"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="font-bold w-5 text-center text-sm">{item.quantity}</span>
+                      <button 
+                        onClick={() => onUpdateQuantity(item.id, 1)}
+                        className="w-7 h-7 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-green-600 transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+
+                    <button 
+                      onClick={() => onRemoveFromCart(item.id)}
+                      className="text-gray-300 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                   
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-gray-800 text-sm truncate">{item.name}</h4>
-                    <p className="text-orange-600 text-xs font-bold mt-0.5">{formatCurrency(item.price * item.quantity)}</p>
+                  {/* Note Input */}
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-50">
+                    <PenLine size={12} className="text-gray-400" />
+                    <input 
+                      type="text" 
+                      placeholder="إضافة ملاحظة (مثلاً: بدون ثلج)..."
+                      className="flex-1 bg-transparent text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:text-gray-800"
+                      value={item.note || ''}
+                      onChange={(e) => onUpdateItemNote && onUpdateItemNote(item.id, e.target.value)}
+                    />
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => onUpdateQuantity(item.id, -1)}
-                      className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-red-600 transition-colors disabled:opacity-50"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="font-bold w-6 text-center text-sm">{item.quantity}</span>
-                    <button 
-                      onClick={() => onUpdateQuantity(item.id, 1)}
-                      className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-green-600 transition-colors"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
-
-                  <button 
-                    onClick={() => onRemoveFromCart(item.id)}
-                    className="text-gray-300 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
               );
             })

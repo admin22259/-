@@ -1,3 +1,4 @@
+
 export interface SaleRecord {
   id: string;
   date: string;
@@ -6,6 +7,7 @@ export interface SaleRecord {
   price: number;
   total: number;
   paymentMethod: 'Cash' | 'Card' | 'Online';
+  note?: string;
 }
 
 export interface ExpenseRecord {
@@ -24,6 +26,7 @@ export interface InventoryItem {
   unit: string;
   minThreshold: number;
   lastUpdated: string;
+  shelfLife: number; // In days
 }
 
 export interface MenuItem {
@@ -36,6 +39,7 @@ export interface MenuItem {
 
 export interface CartItem extends MenuItem {
   quantity: number;
+  note?: string;
 }
 
 export interface KPIData {
@@ -45,4 +49,6 @@ export interface KPIData {
   ordersCount: number;
 }
 
-export type ViewState = 'dashboard' | 'sales' | 'inventory' | 'expenses' | 'ai-insights' | 'pos';
+export type UserRole = 'admin' | 'waiter';
+
+export type ViewState = 'dashboard' | 'sales' | 'inventory' | 'expenses' | 'ai-insights' | 'pos' | 'accounts' | 'waiter';

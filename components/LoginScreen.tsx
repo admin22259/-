@@ -1,11 +1,14 @@
+
 import React, { useState } from 'react';
-import { Citrus, Lock, User, ArrowRight, AlertCircle } from 'lucide-react';
+import { Citrus, Lock, User, ArrowRight, AlertCircle, Smartphone } from 'lucide-react';
+import { UserRole } from '../types';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (role: UserRole) => void;
+  logoUrl?: string;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, logoUrl }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +22,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     // Simulate network delay for effect
     setTimeout(() => {
       if (username === 'root' && password === '22') {
-        onLogin();
+        onLogin('admin');
+      } else if (username === 'waiter' && password === 'waiter') {
+        onLogin('waiter');
       } else {
         setError('اسم المستخدم أو كلمة المرور غير صحيحة');
         setLoading(false);
@@ -32,9 +37,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-500">
         
         {/* Header / Logo Area */}
-        <div className="bg-orange-50 p-8 text-center border-b border-orange-100">
-          <div className="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-500/30">
-            <Citrus size={40} className="text-white" />
+        <div className="bg-orange-50 p-8 text-center border-b border-orange-100 flex flex-col items-center">
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg shadow-orange-500/20 overflow-hidden border-4 border-white">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+            ) : (
+              <Citrus size={40} className="text-orange-500" />
+            )}
           </div>
           <h1 className="text-2xl font-extrabold text-gray-800">همبا جوس صلالة</h1>
           <p className="text-orange-600 font-medium text-sm mt-1">نظام إدارة المبيعات</p>
@@ -96,8 +105,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-xs text-gray-400">© 2024 Hamba Juice POS System</p>
+          <div className="mt-8 text-center border-t border-gray-100 pt-6">
+            <div className="flex flex-col items-center gap-2 opacity-60">
+                <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                    <Smartphone size={16} />
+                    <span>للدخول كـ نادل (Waiter):</span>
+                </div>
+                <code className="bg-gray-100 px-3 py-1 rounded-lg text-xs font-mono text-gray-600">user: waiter / pass: waiter</code>
+            </div>
+            <p className="text-xs text-gray-400 mt-4">© 2024 Hamba Juice POS System</p>
           </div>
         </div>
       </div>

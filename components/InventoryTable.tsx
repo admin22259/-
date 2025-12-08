@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { InventoryItem } from '../types';
-import { AlertCircle, CheckCircle, Trash2, Download, Upload, FileDown } from 'lucide-react';
+import { AlertCircle, CheckCircle, Trash2, Download, Upload, AlertOctagon, CalendarClock } from 'lucide-react';
 
 interface InventoryTableProps {
   inventory: InventoryItem[];
@@ -14,11 +14,11 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ inventory, onDel
   const handleExport = () => {
     // Add BOM for Arabic Excel support
     const BOM = "\uFEFF";
-    const headers = "id,name,category,quantity,unit,minThreshold,lastUpdated";
+    const headers = "id,name,category,quantity,unit,minThreshold,lastUpdated,shelfLife";
     const rows = inventory.map(item => {
       // Escape quotes in names if present
       const name = item.name.replace(/"/g, '""');
-      return `${item.id},"${name}",${item.category},${item.quantity},${item.unit},${item.minThreshold},${item.lastUpdated}`;
+      return `${item.id},"${name}",${item.category},${item.quantity},${item.unit},${item.minThreshold},${item.lastUpdated},${item.shelfLife}`;
     }).join("\n");
     
     const csvContent = BOM + headers + "\n" + rows;
@@ -60,8 +60,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ inventory, onDel
             // Remove quotes if present
             const clean = (s: string) => s ? s.replace(/^"|"$/g, '').replace(/""/g, '"') : '';
             
-            // Map columns to InventoryItem, assuming export order: id, name, category, quantity, unit, minThreshold, lastUpdated
-            // Fallback for simple split if regex fails or simple CSV
+            // Map columns to InventoryItem, assuming export order: id, name, category, quantity, unit, minThreshold, lastUpdated, shelfLife
             const values = cols.length < 5 ? line.split(',') : cols.map(clean);
 
             if (values.length >= 6) {
@@ -72,7 +71,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ inventory, onDel
                  quantity: Number(values[3]) || 0,
                  unit: values[4] || 'قطعة',
                  minThreshold: Number(values[5]) || 0,
-                 lastUpdated: values[6] || new Date().toISOString().split('T')[0]
+                 lastUpdated: values[6] || new Date().toISOString().split('T')[0],
+                 shelfLife: Number(values[7]) || 365 // Default to 365 days if missing
                });
             }
           }
@@ -138,15 +138,15 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ inventory, onDel
               <th className="px-6 py-4 font-medium">الكمية الحالية</th>
               <th className="px-6 py-4 font-medium">مستوى المخزون</th>
               <th className="px-6 py-4 font-medium">الحد الأدنى</th>
+              <th className="px-6 py-4 font-medium">الصلاحية</th>
               <th className="px-6 py-4 font-medium">الحالة</th>
-              <th className="px-6 py-4 font-medium">آخر تحديث</th>
               <th className="px-6 py-4 font-medium">إجراءات</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {inventory.length === 0 ? (
                <tr>
-                 <td colSpan={8} className="text-center py-8 text-gray-400">لا توجد أصناف في المخزون</td>
+                 <td colSpan={9} className="text-center py-8 text-gray-400">لا توجد أصناف في المخزون</td>
                </tr>
             ) : (
               inventory.map((item) => {
@@ -155,6 +155,17 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ inventory, onDel
                 const maxRef = Math.max(item.quantity, item.minThreshold * 2.5) || 100;
                 const percentage = Math.min(100, Math.round((item.quantity / maxRef) * 100));
                 
+                // Expiry Logic
+                const lastUpdateDate = new Date(item.lastUpdated);
+                const expiryDate = new Date(lastUpdateDate);
+                expiryDate.setDate(lastUpdateDate.getDate() + (item.shelfLife || 365));
+                const today = new Date();
+                const timeDiff = expiryDate.getTime() - today.getTime();
+                const daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                
+                const isExpired = daysUntilExpiry <= 0;
+                const isNearExpiry = daysUntilExpiry > 0 && daysUntilExpiry <= 3; // Warning if 3 days or less
+
                 return (
                   <tr key={item.id} className="hover:bg-orange-50/50 transition-colors">
                     <td className="px-6 py-4 font-medium text-gray-800">{item.name}</td>
@@ -176,13 +187,30 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ inventory, onDel
                       </div>
                     </td>
                     <td className="px-6 py-4 text-gray-500">{item.minThreshold}</td>
+                    
+                    {/* Expiry Column */}
+                    <td className="px-6 py-4">
+                      {isExpired ? (
+                        <div className="flex items-center gap-1.5 text-red-600 bg-red-50 px-2 py-1 rounded-lg w-fit">
+                          <AlertOctagon size={14} />
+                          <span className="text-xs font-bold">منتهية ({daysUntilExpiry})</span>
+                        </div>
+                      ) : isNearExpiry ? (
+                        <div className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2 py-1 rounded-lg w-fit">
+                          <CalendarClock size={14} />
+                          <span className="text-xs font-bold">باقي {daysUntilExpiry} أيام</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">باقي {daysUntilExpiry} يوم</span>
+                      )}
+                    </td>
+
                     <td className="px-6 py-4">
                       <div className={`flex items-center gap-2 ${isLowStock ? 'text-red-500' : 'text-green-500'}`}>
                         {isLowStock ? <AlertCircle size={18} /> : <CheckCircle size={18} />}
                         <span className="text-sm font-medium">{isLowStock ? 'منخفض' : 'متوفر'}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-400 text-sm">{item.lastUpdated}</td>
                     <td className="px-6 py-4">
                       <button 
                         onClick={() => onDelete(item.id)}

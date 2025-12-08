@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { DashboardStats } from './components/DashboardStats';
 import { ChartsSection } from './components/ChartsSection';
@@ -9,15 +10,50 @@ import { AIAnalysis } from './components/AIAnalysis';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CashierView } from './components/CashierView';
+import { AccountsView } from './components/AccountsView';
 import { LoginScreen } from './components/LoginScreen';
-import { ViewState, SaleRecord, ExpenseRecord, InventoryItem, CartItem, MenuItem } from './types';
+import { WaiterView } from './components/WaiterView';
+import { ViewState, SaleRecord, ExpenseRecord, InventoryItem, CartItem, MenuItem, UserRole } from './types';
 import { MOCK_SALES, MOCK_EXPENSES, MOCK_INVENTORY } from './constants';
 import { Menu, Settings, SlidersHorizontal, LogOut } from 'lucide-react';
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  // Auth State with Persistence
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('hamba_auth') === 'true';
+  });
+  
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    return (localStorage.getItem('hamba_role') as UserRole) || 'admin';
+  });
+
+  const [currentView, setCurrentView] = useState<ViewState>(() => {
+    // If we are restoring a waiter session, default to waiter view
+    const savedRole = localStorage.getItem('hamba_role');
+    if (savedRole === 'waiter') return 'waiter';
+    return 'dashboard';
+  });
+  
+  // Initialize sidebar based on screen width (Open on desktop, closed on mobile)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
   
   // Data State
   const [sales, setSales] = useState<SaleRecord[]>(MOCK_SALES);
@@ -34,6 +70,16 @@ export default function App() {
     showRecentInventory: true,
     showAIHelp: true,
   });
+  
+  // Logo & Persistence
+  const [logoUrl, setLogoUrl] = useState(() => {
+    return localStorage.getItem('hamba_logo_url') || ''; 
+  });
+
+  // Save settings to local storage
+  useEffect(() => {
+    localStorage.setItem('hamba_logo_url', logoUrl);
+  }, [logoUrl]);
 
   // Modal State
   const [deleteModal, setDeleteModal] = useState<{
@@ -63,15 +109,30 @@ export default function App() {
   const formattedTime = appDate.toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit' });
 
   // Actions
-  const handleLogin = () => {
+  const handleLogin = (role: UserRole) => {
+    setUserRole(role);
     setIsAuthenticated(true);
-    // Optionally default to POS view for cashier convenience
-    setCurrentView('pos'); 
+    
+    // Persist session
+    localStorage.setItem('hamba_auth', 'true');
+    localStorage.setItem('hamba_role', role);
+
+    // Route based on role
+    if (role === 'waiter') {
+      setCurrentView('waiter');
+    } else {
+      setCurrentView('pos'); // Default to POS for admin too for quick access
+    }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setCurrentView('dashboard');
+    setUserRole('admin');
+    
+    // Clear session
+    localStorage.removeItem('hamba_auth');
+    localStorage.removeItem('hamba_role');
   };
 
   const initiateDelete = (type: 'sale' | 'expense' | 'inventory', id: string) => {
@@ -99,17 +160,44 @@ export default function App() {
 
   const handleInventoryImport = (importedItems: InventoryItem[]) => {
     setInventory(prev => {
-      // Create a map of existing items for easier updating
       const itemMap = new Map(prev.map(i => [i.id, i]));
-      
-      // Update existing or add new
       importedItems.forEach(newItem => {
         itemMap.set(newItem.id, newItem);
       });
-      
-      // Convert back to array
       return Array.from(itemMap.values());
     });
+  };
+
+  const handleStartNewDay = () => {
+    setSales([]);
+    setExpenses([]);
+    setCart([]);
+    alert('تم إغلاق اليوم بنجاح وتصفير البيانات لبدء يوم جديد.');
+  };
+
+  // Export Complete Project Data
+  const handleExportData = () => {
+    const projectData = {
+      timestamp: new Date().toISOString(),
+      sales,
+      expenses,
+      inventory,
+      settings: {
+        logoUrl,
+        widgetConfig
+      }
+    };
+    
+    const dataStr = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `HambaJuice_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Cart Actions
@@ -139,17 +227,24 @@ export default function App() {
     });
   };
 
+  const updateCartItemNote = (itemId: string, note: string) => {
+    setCart(prev => prev.map(item => 
+      item.id === itemId ? { ...item, note } : item
+    ));
+  };
+
   const handleCheckout = (paymentMethod: 'Cash' | 'Card' | 'Online') => {
     if (cart.length === 0) return;
 
     const newSales: SaleRecord[] = cart.map(item => ({
       id: Math.random().toString(36).substr(2, 9),
       date: new Date().toISOString().split('T')[0],
-      productName: item.name,
+      productName: item.name + (item.note ? ` (${item.note})` : ''),
       quantity: item.quantity,
       price: item.price,
       total: item.price * item.quantity,
-      paymentMethod
+      paymentMethod,
+      note: item.note // Save note to record
     }));
 
     setSales(prev => [...newSales, ...prev]);
@@ -158,6 +253,21 @@ export default function App() {
   };
 
   const renderContent = () => {
+    // If user is Waiter, force WaiterView or block access
+    if (userRole === 'waiter') {
+      return (
+        <WaiterView 
+          cart={cart}
+          onAddToCart={addToCart}
+          onRemoveFromCart={removeFromCart}
+          onUpdateQuantity={updateCartQuantity}
+          onUpdateItemNote={updateCartItemNote}
+          onCheckout={handleCheckout}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
     switch (currentView) {
       case 'dashboard':
         return (
@@ -187,7 +297,6 @@ export default function App() {
                   <InventoryTable 
                     inventory={inventory.slice(0, 3)} 
                     onDelete={(id) => initiateDelete('inventory', id)} 
-                    // No onImport passed here for the widget view
                   /> 
                 </div>
               )}
@@ -207,13 +316,6 @@ export default function App() {
                 </div>
               )}
             </div>
-            
-            {/* Empty State if everything is hidden */}
-            {!widgetConfig.showStats && !widgetConfig.showCharts && !widgetConfig.showRecentInventory && !widgetConfig.showAIHelp && (
-              <div className="text-center py-20 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
-                <p>جميع الأدوات مخفية. استخدم زر "تخصيص الواجهة" لإظهارها.</p>
-              </div>
-            )}
           </>
         );
       case 'pos':
@@ -223,6 +325,7 @@ export default function App() {
             onAddToCart={addToCart}
             onRemoveFromCart={removeFromCart}
             onUpdateQuantity={updateCartQuantity}
+            onUpdateItemNote={updateCartItemNote}
             onCheckout={handleCheckout}
             onClearCart={() => setCart([])}
           />
@@ -241,16 +344,25 @@ export default function App() {
         return <SalesTable sales={sales} onDelete={(id) => initiateDelete('sale', id)} />;
       case 'expenses':
          return <ExpensesTable expenses={expenses} onDelete={(id) => initiateDelete('expense', id)} />;
+      case 'accounts':
+         return <AccountsView sales={sales} expenses={expenses} onStartNewDay={handleStartNewDay} />;
       default:
+        // Default fallback
         return <div>جاري العمل عليها...</div>;
     }
   };
 
   // Auth Gate
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} logoUrl={logoUrl} />;
   }
 
+  // If role is waiter, bypass admin layout completely
+  if (userRole === 'waiter') {
+    return renderContent();
+  }
+
+  // Admin Layout
   return (
     <div className="min-h-screen bg-orange-50/30 flex text-gray-800 font-sans">
       <Sidebar 
@@ -258,12 +370,16 @@ export default function App() {
         onNavigate={setCurrentView} 
         isOpen={isSidebarOpen}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        logoUrl={logoUrl}
       />
 
-      <div className="flex-1 md:mr-64 transition-all duration-300">
+      <div className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:mr-64' : ''}`}>
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+            >
               <Menu size={24} />
             </button>
             <div>
@@ -273,6 +389,7 @@ export default function App() {
                 {currentView === 'sales' && 'المبيعات'}
                 {currentView === 'inventory' && 'إدارة المخازن'}
                 {currentView === 'expenses' && 'المصروفات'}
+                {currentView === 'accounts' && 'الحسابات والتقارير'}
                 {currentView === 'ai-insights' && 'تحليل الذكاء الاصطناعي'}
               </h2>
             </div>
@@ -281,7 +398,6 @@ export default function App() {
             <button 
               onClick={() => setIsSettingsOpen(true)}
               className="hidden sm:block text-left hover:bg-gray-50 p-2 rounded-lg transition-colors cursor-pointer"
-              title="تعديل الوقت والتاريخ"
             >
               <p className="text-xs text-gray-400">{formattedDate}</p>
               <p className="text-sm font-medium text-gray-700" dir="ltr">{formattedTime}</p>
@@ -295,7 +411,6 @@ export default function App() {
             <button 
               onClick={handleLogout}
               className="w-10 h-10 bg-red-100 hover:bg-red-200 rounded-full flex items-center justify-center text-red-600 transition-colors"
-              title="تسجيل الخروج"
             >
               <LogOut size={20} />
             </button>
@@ -310,7 +425,7 @@ export default function App() {
       <ConfirmationModal 
         isOpen={deleteModal.isOpen}
         title="تأكيد الحذف"
-        message="هل أنت متأكد من حذف هذا السجل؟ لا يمكن التراجع عن هذا الإجراء وسيتم تحديث البيانات والإحصائيات فوراً."
+        message="هل أنت متأكد من حذف هذا السجل؟"
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
       />
@@ -322,6 +437,11 @@ export default function App() {
         setWidgetConfig={setWidgetConfig}
         customDate={appDate}
         setCustomDate={setAppDate}
+        logoUrl={logoUrl}
+        setLogoUrl={setLogoUrl}
+        onExportData={handleExportData}
+        deferredPrompt={deferredPrompt}
+        setDeferredPrompt={setDeferredPrompt}
       />
     </div>
   );

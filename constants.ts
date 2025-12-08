@@ -18,12 +18,12 @@ export const MOCK_EXPENSES: ExpenseRecord[] = [
 ];
 
 export const MOCK_INVENTORY: InventoryItem[] = [
-  { id: '1', name: 'مانجو كيت', category: 'فواكه', quantity: 5, unit: 'صندوق', minThreshold: 3, lastUpdated: '2023-10-28' },
-  { id: '2', name: 'فراولة مجمدة', category: 'فواكه', quantity: 20, unit: 'كجم', minThreshold: 10, lastUpdated: '2023-10-27' },
-  { id: '3', name: 'سكر أبيض', category: 'جاف', quantity: 50, unit: 'كجم', minThreshold: 20, lastUpdated: '2023-10-25' },
-  { id: '4', name: 'أكواب 300مل', category: 'تغليف', quantity: 150, unit: 'قطعة', minThreshold: 500, lastUpdated: '2023-10-26' },
-  { id: '5', name: 'موز بلدي', category: 'فواكه', quantity: 12, unit: 'كجم', minThreshold: 15, lastUpdated: '2023-10-28' },
-  { id: '6', name: 'حليب كامل الدسم', category: 'جاف', quantity: 8, unit: 'لتر', minThreshold: 10, lastUpdated: '2023-10-28' },
+  { id: '1', name: 'مانجو كيت', category: 'فواكه', quantity: 5, unit: 'صندوق', minThreshold: 3, lastUpdated: '2023-10-28', shelfLife: 7 },
+  { id: '2', name: 'فراولة مجمدة', category: 'فواكه', quantity: 20, unit: 'كجم', minThreshold: 10, lastUpdated: '2023-10-27', shelfLife: 180 },
+  { id: '3', name: 'سكر أبيض', category: 'جاف', quantity: 50, unit: 'كجم', minThreshold: 20, lastUpdated: '2023-10-25', shelfLife: 730 },
+  { id: '4', name: 'أكواب 300مل', category: 'تغليف', quantity: 150, unit: 'قطعة', minThreshold: 500, lastUpdated: '2023-10-26', shelfLife: 9999 },
+  { id: '5', name: 'موز بلدي', category: 'فواكه', quantity: 12, unit: 'كجم', minThreshold: 15, lastUpdated: '2023-10-28', shelfLife: 5 },
+  { id: '6', name: 'حليب كامل الدسم', category: 'جاف', quantity: 8, unit: 'لتر', minThreshold: 10, lastUpdated: '2023-10-28', shelfLife: 14 },
 ];
 
 // Colors based on category/type
